@@ -1,5 +1,3 @@
-Dưới đây là toàn bộ nội dung `README.md` hoàn chỉnh, mình viết đầy đủ có cả mô tả dự án, hướng dẫn cài đặt, khởi chạy, sơ đồ kiến trúc (Mermaid) và cách mở hệ thống ra bên ngoài:
-
 ````markdown
 # 🚀 Hệ thống LLM + CMS
 
@@ -108,9 +106,4 @@ graph TD
 ## 📜 Giấy phép
 
 Dự án này phát hành theo giấy phép **MIT License**.
-
-```
-
-Bạn có muốn mình viết thêm **cách deploy bằng Docker Compose** vào README không? Như vậy chỉ cần chạy `docker-compose up` là lên cả API và CMS cùng lúc.
-```
 
