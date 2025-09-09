@@ -1,14 +1,3 @@
-````markdown
-# 🚀 Hệ thống LLM + CMS
-
-Dự án này bao gồm:
-- **API Server (LLM)**: Xây dựng bằng **FastAPI** + **Uvicorn**
-- **Client-side CMS**: Xây dựng bằng **Next.js**
-
-Hệ thống cho phép bạn quản lý tệp, giao tiếp với mô hình LLM qua API và cung cấp giao diện CMS thân thiện.
-
----
-
 ## 📦 Cài đặt
 
 ### Yêu cầu
@@ -65,19 +54,6 @@ Sau khi khởi chạy thành công, bạn có thể truy cập CMS tại địa 
 
 ---
 
-## 🏗️ Kiến trúc hệ thống
-
-```mermaid
-graph TD
-    A[Người dùng] -->|Truy cập| B[Client-side CMS (Next.js)]
-    B -->|Gửi request| C[API Server (FastAPI + Uvicorn)]
-    C -->|Xử lý bằng LLM| D[LLM Engine]
-    D -->|Trả kết quả| C
-    C -->|JSON Response| B
-    B -->|Hiển thị dữ liệu| A
-```
-
----
 
 ## 📂 Cấu trúc thư mục
 
