@@ -285,7 +285,7 @@ export default function PresentationPage() {
 
         try {
           const apiKey =
-            "AIzaSyBB7BJRgp65Wdt5AgY6xkgS1DVwwc9zPFg"
+            "Some Fucking Key"
 
           if (!apiKey) {
             throw new Error(
