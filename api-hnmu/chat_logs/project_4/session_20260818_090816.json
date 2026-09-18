@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260818_090816",
+    "chat_history": [
+        {
+            "timestamp": "2026-08-18T09:08:19.739040",
+            "question": "Tell me about arduino ",
+            "answer": "Arduino is a popular open-source microcontroller board developed by Arduino, which is designed for programming and controlling electronic devices. It is known for its simplicity, affordability, and ease of use, making it ideal for beginners and hobbyists. The board is built on a microcontroller chip, typically a Texas Instruments TMS320C Series or an Arduino-based chip, and it can be programmed using a simple programming language like C or C++. It is often used for projects such as sensors, actuators, and interactive devices. The Arduino board is also known for its compact form factor and plug-and-play nature, making it easy to integrate into various projects."
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260418_112752",
+    "chat_history": [
+        {
+            "timestamp": "2026-04-18T11:27:58.524181",
+            "question": "Answer in the same language as the user's question: Can you tell me about your University Vietnam",
+            "answer": "<think>\n\n</think>\n\nYes, I can tell you about my University Vietnam. I am a language model developed by the Swinburne Vietnam Innovation Lab, and I am primarily used for project presentations and Q&A. I leverage Mistral-based LLMs, possibly optimized for Vietnamese context using Vi-Mistral-X [8]. Additionally, I use QLoRA [6] for efficient fine-tuning on domain-specific datasets and low-latency inference, allowing me to run effectively on powerful fog nodes or specialized edge AI accelerators."
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260530_103217",
+    "chat_history": [
+        {
+            "timestamp": "2026-05-30T10:32:21.342725",
+            "question": "remind me hello world program in C sharp",
+            "answer": "Certainly! Here’s a simple \"Hello World\" program in C#:\n\n```csharp\nusing System;\n\nclass Program\n{\n    static void Main(string[] args)\n    {\n        Console.WriteLine(\"Hello, World!\");\n    }\n}\n```\n\nTo run this program, make sure you have a C# compiler installed, like the one included with Visual Studio or .NET SDK. Save the code in a file with a `.cs` extension (e.g., `HelloWorld.cs`), and then compile and execute it using your preferred environment."
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260918_134400",
+    "chat_history": [
+        {
+            "timestamp": "2026-09-18T13:44:13.006487",
+            "question": "Answer in the same language as the user's question: tạo tôi file test điều khiển servo từ 50 - 70 độ",
+            "answer": "Bạn có thể tạo file test điều khiển servo từ 50 đến 70 độ bằng cách sử dụng các công cụ như:  \n- **Servo Control Software**: Các phần mềm như **Servo Control** (từ các công ty như FPT Software) hoặc **Arduino IDE**.  \n- **Công cụ điều khiển**: Sử dụng các thiết bị như **Servo Motor**, **Encoder**, hoặc **Thời gian** để kiểm tra tốc độ và độ lệch.  \n- **Cài đặt**: Thiết lập các điều kiện điều khiển (với tốc độ từ 50 đến 70 độ/s) và test kết quả.  \n\nBạn có thể liên hệ với các công ty để được hỗ trợ thêm!"
+        }
+    ]
+}

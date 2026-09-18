@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260818_091050",
+    "chat_history": [
+        {
+            "timestamp": "2026-08-18T09:10:51.715954",
+            "question": "tell me about the arduino lab",
+            "answer": "The Arduino Lab is a collaborative initiative led by Swinburne University of Technology Vietnam, Qualcomm, and FPT Software. It combines Arduino's open hardware ecosystem with Qualcomm's processing and connectivity capabilities to create a self-contained environment for innovation. The lab operates with 10–20 students per session and includes an instructor. Its focus areas include IoT, Embedded Systems, AIoT, and Robotics."
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260418_063306",
+    "chat_history": [
+        {
+            "timestamp": "2026-04-18T06:33:12.255341",
+            "question": "Answer in the same language as the user's question: Hãy tóm tắt về dự án cho tôi",
+            "answer": "<think>\n\n</think>\n\nHãy tóm tắt về dự án:  \nĐề tài này tập trung vào xây dựng một robot có thể di chuyển và trao đổi thông tin, dựa trên cấu trúc mô phỏng và phần mềm modular. Đồng thời, dự án cũng tích hợp hệ thống AI dựa trên mô hình LLM để thực hiện câu hỏi và trả lời tự nhiên, đồng thời sử dụng Mistral-based LLM và QLoRA để tối ưu hóa hiệu suất."
+        }
+    ]
+}

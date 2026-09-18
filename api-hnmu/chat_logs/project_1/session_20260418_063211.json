@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260418_063211",
+    "chat_history": [
+        {
+            "timestamp": "2026-04-18T06:32:18.083818",
+            "question": "Answer in the same language as the user's question: Tell me about this project very short please please",
+            "answer": "<think>\n\n</think>\n\nSure! This project focuses on developing a modular AI assistant robot with a mobile platform and interactive communication, as well as an LLM-based interactive system for natural language understanding and dynamic presentation generation."
+        }
+    ]
+}

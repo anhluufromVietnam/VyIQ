@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260418_055629",
+    "chat_history": [
+        {
+            "timestamp": "2026-04-18T05:56:34.870470",
+            "question": "Answer in English only: I need to understand about whole project",
+            "answer": "<think>\n\n</think>\n\nSure! The whole project involves developing a modular AI assistant robot with physical movement and interactive communication, as well as an LLM-based interactive system. The system is designed to support natural language understanding, context-aware question answering, and dynamic presentation generation. Additionally, it includes features beyond basic obstacle detection and limited multilingual support, though the system is currently primarily developed for Vietnamese and English."
+        }
+    ]
+}
