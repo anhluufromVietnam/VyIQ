@@ -18,67 +18,20 @@ from docx import Document as DocxDocument
 from moviepy import VideoFileClip
 from PIL import Image
 from datetime import datetime
-import ollama
-from openai import OpenAI as OpenAIClient
+from openai import OpenAI
 import json  # <--- ĐẢM BẢO CÓ DÒNG NÀY Ở ĐÂY
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 
 import uuid
 
 
 #EMBEDDINg SH
 # Login into Hugging Face Hub
-from huggingface_hub import login
 #login()
-from huggingface_hub import snapshot_download
-
-
-# Tải mô hình từ Hugging Face về thư mục cục bộ
-model_id = "google/embeddinggemma-300M"
-local_dir = "./embeddinggemma-300M"
-
-print(f"Đang tải mô hình {model_id}...")
-snapshot_download(repo_id=model_id, local_dir=local_dir) #del sau lần đầu
-print(f"Hoàn tất! Mô hình đã được lưu tại: {local_dir}")
-
-
-import torch
-from sentence_transformers import SentenceTransformer
-
-# 1. CẤU HÌNH CHẾ ĐỘ OFFLINE (Ngăn không cho code gọi lên mạng)
-os.environ['TRANSFORMERS_OFFLINE'] = "1"
-os.environ['HF_HUB_OFFLINE'] = "1"
 
 
 app = FastAPI()
 
 
-# 2. KIỂM TRA THIẾT BỊ (Ưu tiên MPS cho Mac Mini)
-if torch.cuda.is_available():
-    device = "cuda"
-elif torch.backends.mps.is_available():
-    device = "mps"
-else:
-    device = "cpu"
-
-# 3. LOAD MODEL TỪ THƯ MỤC CỤC BỘ
-# Đường dẫn trỏ trực tiếp vào thư mục bạn đã tải về ở Bước 1
-model_path = "./embeddinggemma-300M"
-
-print(f"--- Đang khởi tạo Model từ: {model_path} ---")
-try:
-    # Load model và đẩy thẳng vào MPS/GPU
-    model = SentenceTransformer(model_path).to(device)
-    
-    print(f"Thiết bị đang sử dụng: {model.device}")
-    total_params = sum([p.numel() for p in model.parameters()])
-    print(f"Tổng số tham số: {total_params:,}")
-    print("--- Model đã sẵn sàng chạy Offline! ---")
-except Exception as e:
-    print(f"LỖI LOAD MODEL: Hãy chắc chắn bạn đã chạy script tải model về thư mục {model_path}")
-    print(f"Chi tiết lỗi: {e}")
-#-------------------------
 
 from fastapi.staticfiles import StaticFiles
 
@@ -143,9 +96,9 @@ class Project(Base):
 class SystemConfig(Base):
     __tablename__ = "system_config"
     id = Column(Integer, primary_key=True, index=True)
-    provider = Column(String, default="ollama")
-    openai_api_key = Column(String, nullable=True)
-    model_name = Column(String, default="qwen3:0.6b") # Khuyến nghị bản 7b để đọc bảng tốt hơn
+    provider = Column(String, default="nebius")
+    openai_api_key = "v1.CmQKHHN0YXRpY2tleS1lMDBqaGNxbXo4czl5dnZjOWcSIXNlcnZpY2VhY2NvdW50LWUwMHBqano1cjVwd3IyeDVhNDIMCMrotdUGEOqql7QBOgwIyevNoAcQgLnvogJAAloDZTAw.AAAAAAAAAAFIGNfQ9C1lPDNn0jZSuZyir6VTEBALh5MtKDvhKBmFJpCN_pAfaUJzCopmJ7pfZKMNTyXx1on2Rw3dyXAKqDYA"
+    model_name = Column(String, default="nvidia/Nemotron-3_5-Lightning")
 
 Base.metadata.create_all(bind=engine)
 # --- Schemas ---
@@ -392,121 +345,128 @@ async def save_document(project_id: int, request: Request):
         raise HTTPException(status_code=500, detail=f"Failed to save document: {e}")
 
 # LLM WORK
-# --- LLM and Embedding Configuration ---
+# --- Nebius / OpenAI-compatible configuration ---
 
-# 1. Hàm chia nhỏ văn bản (Nhận vào một String thay vì filepath)
-def chunk_text(text_content, chunk_size=600, overlap=100):
+NEBIUS_API_KEY = "v1.CmQKHHN0YXRpY2tleS1lMDBqaGNxbXo4czl5dnZjOWcSIXNlcnZpY2VhY2NvdW50LWUwMHBqano1cjVwd3IyeDVhNDIMCMrotdUGEOqql7QBOgwIyevNoAcQgLnvogJAAloDZTAw.AAAAAAAAAAFIGNfQ9C1lPDNn0jZSuZyir6VTEBALh5MtKDvhKBmFJpCN_pAfaUJzCopmJ7pfZKMNTyXx1on2Rw3dyXAKqDYA"
+NEBIUS_BASE_URL = "https://api.tokenfactory.us-north1.nebius.com/v1/"
+NEBIUS_MODEL = "zai-org/GLM-5.3"
+
+client = OpenAI(
+    base_url=NEBIUS_BASE_URL,
+    api_key=NEBIUS_API_KEY,
+)
+
+
+def extract_document_text(doc_path: str) -> str:
+    """Read one supported document and return all text."""
+    ext = os.path.splitext(doc_path)[-1].lower()
+
+    if ext == ".docx":
+        doc = DocxDocument(doc_path)
+        parts = [para.text for para in doc.paragraphs]
+
+        # Also include table contents because they are often important in project docs.
+        for table in doc.tables:
+            for row in table.rows:
+                parts.append(" | ".join(cell.text for cell in row.cells))
+
+        return "\n".join(parts)
+
+    if ext in [".txt", ".md"]:
+        with open(doc_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    if ext == ".pdf":
+        with open(doc_path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    if ext == ".csv":
+        df = pd.read_csv(doc_path)
+        return df.to_string(index=False)
+
+    raise ValueError(f"Unsupported document format: {ext}")
+
+
+def get_all_docs_context(project_id: int) -> str:
     """
-    Chia nhỏ văn bản thông minh: Ưu tiên ngắt tại dòng mới hoặc dấu câu 
-    để không làm vỡ cấu trúc bảng biểu hoặc câu văn.
+    Read EVERY supported file inside project_files/{project_id}/docs
+    and put the complete contents into one context string.
+
+    No chunking, embedding, cosine similarity, or RAG retrieval is used.
     """
-    if not text_content:
-        return []
+    docs_dir = f"project_files/{project_id}/docs"
 
-    chunks = []
-    start = 0
-    text_len = len(text_content)
+    if not os.path.isdir(docs_dir):
+        return ""
 
-    while start < text_len:
-        # Xác định điểm kết thúc dự kiến
-        end = min(start + chunk_size, text_len)
-        
-        # Nếu chưa đến cuối văn bản, tìm điểm ngắt đẹp (dấu xuống dòng hoặc dấu chấm)
-        if end < text_len:
-            # Ưu tiên ngắt tại dòng mới (\n) để giữ nguyên hàng của bảng
-            last_newline = text_content.rfind('\n', start, end)
-            if last_newline != -1 and last_newline > start + (chunk_size // 2):
-                end = last_newline
-            else:
-                # Nếu không có dòng mới, tìm dấu chấm để tránh cắt ngang câu
-                last_period = text_content.rfind('. ', start, end)
-                if last_period != -1 and last_period > start + (chunk_size // 2):
-                    end = last_period + 1
+    supported_extensions = {".docx", ".txt", ".md", ".pdf", ".csv"}
+    documents = []
 
-        chunk = text_content[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-            
-        # Dịch chuyển start cho đoạn kế tiếp (có tính overlap)
-        # Nếu đã ở cuối văn bản, thoát vòng lặp
-        if end >= text_len:
-            break
-            
-        start = end - overlap
-        
-        # Đảm bảo start luôn tăng lên để tránh vòng lặp vô hạn
-        if start >= end:
-            start = end + 1
-            
-    return chunks
+    for filename in sorted(os.listdir(docs_dir)):
+        path = os.path.join(docs_dir, filename)
 
-# 2. Hàm truy xuất (Retrieval)
-def retrieve_documents(query, document_chunks, document_embeddings, top_k=3):
-    # Embed câu hỏi của user bằng 'Retrieval-query'
-    query_embedding = model.encode(query, prompt_name="Retrieval-query", convert_to_tensor=True, device=device)
+        if not os.path.isfile(path):
+            continue
 
-    # Tính toán Cosine Similarity
-    # Đưa về numpy để dùng sklearn
-    similarities = cosine_similarity(
-        query_embedding.cpu().numpy().reshape(1, -1),
-        document_embeddings.cpu().numpy()
-    )
+        ext = os.path.splitext(filename)[-1].lower()
+        if ext not in supported_extensions:
+            continue
 
-    # Lấy top_k kết quả cao nhất
-    top_k_indices = np.argsort(similarities[0])[::-1][:top_k]
-    retrieved_chunks = [document_chunks[i] for i in top_k_indices]
-    return retrieved_chunks
+        try:
+            content = extract_document_text(path)
+            documents.append(
+                f"\n===== FILE: {filename} =====\n"
+                f"{content}\n"
+                f"===== END FILE: {filename} =====\n"
+            )
+        except Exception as e:
+            print(f"Failed to read {path}: {e}")
+
+    return "\n".join(documents)
+
+
+def get_document_text(project_id: int):
+    """Backward-compatible API: now returns ALL docs in the project."""
+    content = get_all_docs_context(project_id)
+    if not content:
+        raise HTTPException(status_code=404, detail="No supported documents found")
+    return {"content": content}
+
 
 def rebuild(id_of):
-    doc_res = get_document_text(id_of)
-    print(doc_res)
-    # 2. String chứa nội dung tài liệu của bạn (Thay thế nội dung file DOCX bằng biến này)
-    full_text_string = doc_res.get("content", "")
+    """
+    Kept for compatibility with the existing upload endpoint.
+    There is no embedding/RAG index to rebuild anymore because the
+    complete docs folder is loaded directly into the LLM context per request.
+    """
+    return {"status": "success", "message": "Documents will be loaded directly into context."}
 
-    # 3. Thực hiện chia nhỏ văn bản
-    print("Đang chia nhỏ văn bản từ chuỗi ký tự...")
-    document_chunks = chunk_text(full_text_string, chunk_size=500, overlap=50)
-    print(f"Đã tạo {len(document_chunks)} đoạn văn bản.")
-
-    # 4. Tạo embedding cho các đoạn văn bản (Dùng model và device bạn đã config ở trên)
-    print("Đang tạo embedding cho các đoạn văn bản...")
-    # Sử dụng prompt_name="Retrieval-document" theo khuyến nghị của Gemma
-    document_embeddings = model.encode(
-        document_chunks,
-        prompt_name="Retrieval-document",
-        convert_to_tensor=True,
-        device=device
-    )
-    print(f"Kích thước embedding tài liệu: {document_embeddings.shape}")
 
 # Session memory
 chat_sessions = {}
-# --- Cập nhật Endpoint /ask ---
+
+
 @app.post("/projects/{project_id}/ask")
 async def ask_question(project_id: int, request: Request):
     db = SessionLocal()
-    sys_config = db.query(SystemConfig).first()
-    if not sys_config:
-        sys_config = SystemConfig(provider="ollama", model_name="qwen3:0.6b")
-    
+
     data = await request.json()
-    sys_config = SystemConfig(provider="ollama", model_name="qwen3:0.6b")
-    
-    # 1. Lấy dữ liệu từ Frontend
     question = data.get("question")
-    
-    # LOGIC MỚI: Nếu không có session_id gửi lên, tạo một session hoàn toàn mới dựa trên timestamp
-    # Điều này giúp tách biệt các cuộc hội thoại thay vì dùng chung "default_session"
+
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    # Session ID
     incoming_session_id = data.get("session_id")
     if not incoming_session_id or incoming_session_id == "default_session":
         session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     else:
         session_id = incoming_session_id
 
-    provider = data.get("provider") or sys_config.provider
-    model_name = data.get("model") or sys_config.model_name
-
-    # 2. KHÔI PHỤC LỊCH SỬ TỪ LOG FILE (Để AI nhớ được ngữ cảnh trong CÙNG 1 session)
+    # ---------------------------------------------------------
+    # 1. Load previous conversation history
+    # ---------------------------------------------------------
     history_for_ai = []
     log_dir = f"chat_logs/project_{project_id}"
     file_path = os.path.join(log_dir, f"{session_id}.json")
@@ -516,107 +476,155 @@ async def ask_question(project_id: int, request: Request):
             try:
                 session_log = json.load(f)
                 for turn in session_log.get("chat_history", []):
-                    history_for_ai.append({"role": "user", "content": turn["question"]})
-                    history_for_ai.append({"role": "assistant", "content": turn["answer"]})
-            except:
+                    history_for_ai.append(
+                        f"USER: {turn['question']}\n"
+                        f"ASSISTANT: {turn['answer']}"
+                    )
+            except Exception:
                 pass
 
-    # 3. Chuẩn bị ngữ cảnh RAG
-    #doc_res = get_document_text(project_id)
-    #local_context = doc_res.get("content", "")
-    
-    
-    # 6. Sử dụng thực tế
-    #user_question = input("Vui lòng nhập câu hỏi của bạn: ")
-    #print(f"\nCâu hỏi của bạn: {user_question}")
-    doc_res = get_document_text(project_id)
-    print(doc_res)
-    # 2. String chứa nội dung tài liệu của bạn (Thay thế nội dung file DOCX bằng biến này)
-    full_text_string = doc_res.get("content", "")
-    
-    
-    document_chunks = chunk_text(full_text_string, chunk_size=500, overlap=50)
-    
-        # Sử dụng prompt_name="Retrieval-document" theo khuyến nghị của Gemma
-    document_embeddings = model.encode(
-        document_chunks,
-        prompt_name="Retrieval-document",
-        convert_to_tensor=True,
-        device=device
-    )
-    retrieved_info = retrieve_documents(question, document_chunks, document_embeddings, top_k=2)
-    print("DEBUG RAG: ")
-    print(retrieved_info)
-    current_year = datetime.now().year
+    # ---------------------------------------------------------
+    # 2. Load ALL files from docs into context
+    # ---------------------------------------------------------
+    full_docs_context = get_all_docs_context(project_id)
 
+    print("\n========== DEBUG DOCS ==========")
+    print("PROJECT ID:", project_id)
+    print("DOCS DIR:", f"project_files/{project_id}/docs")
+    print("DOCS EXISTS:", os.path.isdir(f"project_files/{project_id}/docs"))
+    print("DOCS CONTEXT LENGTH:", len(full_docs_context))
+    print("DOCS CONTEXT PREVIEW:")
+    print(full_docs_context[:3000])
+    print("========== END DEBUG ==========\n")
 
+    if not full_docs_context:
+        full_docs_context = "(No project documents are available.)"
 
-    # 4. Xây dựng Payload messages
-    system_instruction ={
-        "role": "system",
-        "content": f"""
-            /no_think You are an AI assistant developed by the Swinburne Vietnam Innovation Lab. Always provide accurate, polite, clear, and concise answers in English. If relevant information is available in the provided documents, ensure your responses are based strictly on that information {retrieved_info}f  .\n /no_think
-            
-    """
-    }
-    
-    
-    #system_instruction["content"] = "/no_think " + system_instruction["content"] + " /no_think "
+    # ---------------------------------------------------------
+    # 3. System prompt
+    # ---------------------------------------------------------
+    system_instruction = """
+Bạn là robot trợ lý ảo của Trường Đại học Thủ đô Hà Nội.
 
-    payload_messages = [system_instruction] + history_for_ai + [{"role": "user", "content": question}]
+Luôn trả lời bằng tiếng Việt.
+
+Hãy nói chuyện tự nhiên, thân thiện và lịch sự như một trợ lý đang trò chuyện trực tiếp với sinh viên, học sinh và phụ huynh.
+
+Ưu tiên câu trả lời ngắn gọn, dễ hiểu và đi thẳng vào vấn đề.
+
+Thông thường chỉ trả lời từ một đến bốn câu. Chỉ trả lời dài hơn khi câu hỏi thực sự cần nhiều thông tin.
+
+Ưu tiên văn nói tự nhiên, không viết theo phong cách văn bản hành chính.
+
+Không nhắc lại câu hỏi của người dùng.
+
+Không mở đầu bằng những câu dài hoặc sáo rỗng.
+
+Không sử dụng danh sách, bảng hoặc các định dạng phức tạp nếu không thực sự cần thiết.
+
+Không sử dụng ký tự đặc biệt để trang trí câu trả lời.
+
+Không sử dụng Markdown.
+
+Không sử dụng dấu sao, dấu gạch đầu dòng, dấu thăng hoặc các ký hiệu trang trí khác.
+
+Nguồn thông tin chính của bạn là PROJECT DOCUMENTS. Đây là toàn bộ nội dung các tài liệu được cung cấp trong thư mục tài liệu của dự án.
+
+Khi người dùng hỏi về nhà trường, tuyển sinh, ngành học, chương trình đào tạo, học phí, lịch học, quy định hoặc các thông tin chính thức khác của nhà trường, hãy ưu tiên thông tin trong PROJECT DOCUMENTS.
+
+Không tự suy đoán hoặc bịa thêm thông tin không có trong tài liệu.
+
+Nếu tài liệu không có đủ thông tin để trả lời, hãy nói ngắn gọn rằng bạn chưa tìm thấy thông tin này trong tài liệu hiện có.
+
+Nếu câu hỏi không liên quan đến nhà trường, bạn có thể trả lời bằng kiến thức chung khi phù hợp.
+
+Bạn là trợ lý ảo cung cấp thông tin và không được tự đưa ra quyết định hoặc cam kết thay mặt nhà trường.
+
+Không đề cập đến RAG, embeddings, retrieval, chunking, model, prompt, context hoặc các công nghệ nội bộ khác.
+
+Mục tiêu là trả lời giống một người trợ lý thật đang nói chuyện với người dùng.
+
+Hãy luôn ưu tiên ngắn gọn, tự nhiên và dễ hiểu.
+"""
+
+    # ---------------------------------------------------------
+    # 4. Build the complete input context
+    # ---------------------------------------------------------
+    conversation_history = "\n\n".join(history_for_ai[-20:])
+
+    input_context = f"""
+PROJECT DOCUMENTS
+=================
+{full_docs_context}
+=================
+
+CONVERSATION HISTORY
+====================
+{conversation_history if conversation_history else "(No previous conversation.)"}
+====================
+
+CURRENT USER QUESTION
+=====================
+{question}
+=====================
+"""
 
     try:
-        # 5. Gọi AI
-        if provider == "openai":
-            client = OpenAIClient(api_key=sys_config.openai_api_key)
-            response = client.chat.completions.create(model=model_name, messages=payload_messages)
-            answer = response.choices[0].message.content
-        else:
-            response = ollama.chat(
-                model=model_name,
-                messages=payload_messages,
-                options={
-                "temperature": 0.1,       # (Quan trọng) Đưa về 0 để câu trả lời mang tính xác định, ít suy luận vòng vo
-                "top_k": 20,              # Chỉ lấy các lựa chọn từ ngữ hàng đầu
-                "top_p": 0.2             # Giảm sự đa dạng của từ ngữ để đi thẳng vào vấn đề
-                }
-            )
-            answer = response['message']['content']
-            
+        # -----------------------------------------------------
+        # 5. Call Nebius GLM through OpenAI-compatible API
+        # -----------------------------------------------------
+        response = client.responses.create(
+            model=NEBIUS_MODEL,
+            input=input_context,
+            instructions=system_instruction,
+        )
 
-        # 6. LOGIC LƯU TRỮ (DATABASE & JSON)
+        answer = response.output_text
+
+        # -----------------------------------------------------
+        # 6. Save history to database
+        # -----------------------------------------------------
         now = datetime.now()
         timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
-        
-        # A. Ghi log vào DB kèm Session_ID
+
         history_entry = ChatHistory(
             project_id=project_id,
-            session_id=session_id, # <--- Lưu ID session vào DB
+            session_id=session_id,
             timestamp=timestamp_str,
             question=question,
             answer=answer,
-            provider=provider,
-            model_name=model_name
+            provider="nebius",
+            model_name=NEBIUS_MODEL,
         )
+
         db.add(history_entry)
         db.commit()
 
-        # B. Cập nhật file JSON hội thoại (Append vào history của session đó)
+        # -----------------------------------------------------
+        # 7. Save session JSON
+        # -----------------------------------------------------
         os.makedirs(log_dir, exist_ok=True)
+
         new_turn = {
             "timestamp": now.isoformat(),
             "question": question,
-            "answer": answer
+            "answer": answer,
         }
 
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
                 try:
                     session_data = json.load(f)
-                except:
-                    session_data = {"session_id": session_id, "chat_history": []}
+                except Exception:
+                    session_data = {
+                        "session_id": session_id,
+                        "chat_history": [],
+                    }
         else:
-            session_data = {"session_id": session_id, "chat_history": []}
+            session_data = {
+                "session_id": session_id,
+                "chat_history": [],
+            }
 
         session_data["chat_history"].append(new_turn)
 
@@ -624,30 +632,30 @@ async def ask_question(project_id: int, request: Request):
             json.dump(session_data, f, ensure_ascii=False, indent=4)
 
     except Exception as e:
+        db.rollback()
         answer = f"Lỗi hệ thống: {str(e)}"
-    
+
     print(answer)
 
-    # Trả về kèm session_id để Frontend lưu lại cho lần chat tiếp theo của cùng cuộc hội thoại
     return {
         "answer": answer,
         "session_id": session_id,
-        "provider": provider,
-        "model": model_name
+        "provider": "nebius",
+        "model": NEBIUS_MODEL,
     }
-    
-    
+
+
 # --- Các API bổ trợ (System Config, Upload, Delete...) ---
 @app.get("/system/config")
 def get_config():
     db = SessionLocal()
-    return db.query(SystemConfig).first() or {"provider": "ollama", "model_name": "qwen3:0.6b"}
+    return db.query(SystemConfig).first() or {"provider": "nebius", "model_name": "zai-org/GLM-5.3-Flash"}
 
 @app.post("/system/config")
 async def update_config(request: Request):
     data = await request.json()
     db = SessionLocal()
-    config = db.query(SystemConfig).first() or SystemConfig()
+    config = db.query(SystemConfig).first() or SystemConfig(provider="nebius", model_name=NEBIUS_MODEL)
     config.provider = data.get("provider", config.provider)
     config.openai_api_key = data.get("openai_api_key", config.openai_api_key)
     config.model_name = data.get("model_name", config.model_name)
@@ -655,8 +663,8 @@ async def update_config(request: Request):
     return {"status": "success"}
 
 @app.post("/projects/{project_id}/upload_multi")
-async def upload_multi(files: List[UploadFile] = File(...)):
-    path = "project_files/{project_id}/docs"
+async def upload_multi(project_id: int, files: List[UploadFile] = File(...)):
+    path = f"project_files/{project_id}/docs"
     os.makedirs(path, exist_ok=True)
     for file in files:
         with open(f"{path}/{file.filename}", "wb") as f:

@@ -1,0 +1,10 @@
+{
+    "session_id": "session_20260919_010203",
+    "chat_history": [
+        {
+            "timestamp": "2026-09-19T01:02:24.182991",
+            "question": "Answer in the same language as the user's question: hi",
+            "answer": "Hello! 👋 I'm your assistant for information about **Hanoi Metropolitan University (HNMU)**.\n\nI can help you with questions such as:\n\n- **Admissions 2026**: majors, quotas, admission methods, subject combinations, benchmark scores\n- **Tuition fees**: for the 2026–2027 academic year and different student cohorts\n- **Programs & faculties**: e.g., Information Technology, Applied Mathematics, Teacher Education, Tourism & Hotel Management, etc.\n- **Scholarships & student policies**: including Decree 116/2020/NĐ-CP support\n- **Contact info**: faculties, departments, library, and campuses\n- **General info**: the university's history, mission, vision, and campuses\n\nFeel free to ask me anything — for example: *\"What majors does HNMU offer?\"* or *\"What is the admission quota for Information Technology in 2026?\"*"
+        }
+    ]
+}

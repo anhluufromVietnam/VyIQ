@@ -17,6 +17,7 @@ import {
 export default function PresentationPage() {
   const { id } = useParams()
   const videoRef = useRef<HTMLVideoElement>(null)
+    const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // =========================================================
   // HNMU BRAND COLORS
@@ -266,90 +267,151 @@ export default function PresentationPage() {
       .trim()
   }
 
-  // =========================================================
-  // TEXT TO SPEECH
-  // =========================================================
-  const speak = useCallback(
-    (text: string) => {
-      const synth =
-        window.speechSynthesis
+    // =========================================================
+    // TEXT TO SPEECH - GOOGLE CLOUD TTS
+    // =========================================================
+    const speak = useCallback(
+      async (text: string) => {
+        const clean = processAIResponse(text)
 
-      synth.cancel()
+        if (!clean) return
 
-      const clean =
-        processAIResponse(text)
+        // Dừng audio cũ nếu đang phát
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+          audioRef.current = null
+        }
 
-      const utter =
-        new SpeechSynthesisUtterance(
-          clean
-        )
+        try {
+          const apiKey =
+            "AIzaSyBB7BJRgp65Wdt5AgY6xkgS1DVwwc9zPFg"
 
-      const lang =
-        detectLanguage(clean)
-
-      utter.lang = lang
-
-      const setVoice = () => {
-        const voices =
-          synth.getVoices()
-
-        let voice
-
-        if (lang === "vi-VN") {
-          voice = voices.find(
-            (v) =>
-              v.lang.startsWith("vi") ||
-              v.name.includes(
-                "Vietnamese"
-              ) ||
-              v.name.includes("Linh")
-          )
-        } else {
-          voice =
-            voices.find((v) =>
-              v.name.includes(
-                "Google US English"
-              )
-            ) ||
-            voices.find(
-              (v) => v.lang === "en-US"
-            ) ||
-            voices.find((v) =>
-              v.lang.startsWith("en")
+          if (!apiKey) {
+            throw new Error(
+              "Thiếu NEXT_PUBLIC_GOOGLE_TTS_API_KEY"
             )
-        }
+          }
 
-        if (voice) {
-          utter.voice = voice
-        }
-      }
+          // ==============================
+          // GỌI GOOGLE TTS
+          // ==============================
+          const response = await fetch(
+            "https://texttospeech.googleapis.com/v1/text:synthesize?key=" +
+              encodeURIComponent(apiKey),
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                input: {
+                  text: clean,
+                },
+                voice: {
+                  languageCode: "vi-VN",
+                  name: "vi-VN-Chirp3-HD-Aoede",
+                },
+                audioConfig: {
+                  audioEncoding: "MP3",
+                },
+              }),
+            }
+          )
 
-      setVoice()
+          const data = await response.json()
 
-      if (
-        speechSynthesis.onvoiceschanged !==
-        undefined
-      ) {
-        speechSynthesis.onvoiceschanged =
-          setVoice
-      }
+          if (!response.ok) {
+            throw new Error(
+              data?.error?.message ||
+                "Google TTS API request failed"
+            )
+          }
 
-      utter.onstart = () => {
-        setIsSpeaking(true)
-        sendCommand("1")
-      }
+          if (!data.audioContent) {
+            throw new Error(
+              "Google TTS không trả về audio"
+            )
+          }
 
-      utter.onend = () => {
-        setTimeout(() => {
+          // ==============================
+          // BASE64 → AUDIO
+          // ==============================
+          const binary = window.atob(data.audioContent)
+
+          const bytes = new Uint8Array(binary.length)
+
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+
+          const blob = new Blob([bytes], {
+            type: "audio/mpeg",
+          })
+
+          const audioUrl =
+            URL.createObjectURL(blob)
+
+          const audio = new Audio(audioUrl)
+
+          audioRef.current = audio
+
+          // ==============================
+          // AUDIO BẮT ĐẦU PHÁT THỰC SỰ
+          // ==============================
+          audio.onplay = () => {
+            setIsSpeaking(true)
+
+            // Robot bắt đầu nói
+            sendCommand("1")
+          }
+
+          // ==============================
+          // AUDIO NÓI XONG
+          // ==============================
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl)
+
+            audioRef.current = null
+
+            setTimeout(() => {
+              setIsSpeaking(false)
+
+              // Robot dừng nói
+              sendCommand("0")
+            }, 600)
+          }
+
+          // ==============================
+          // AUDIO ERROR
+          // ==============================
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl)
+
+            audioRef.current = null
+
+            setIsSpeaking(false)
+
+            sendCommand("0")
+          }
+
+          // ==============================
+          // BẮT ĐẦU PHÁT AUDIO
+          // ==============================
+          await audio.play()
+
+        } catch (error) {
+          console.error(
+            "Google Cloud TTS Error:",
+            error
+          )
+
           setIsSpeaking(false)
           sendCommand("0")
-        }, 600)
-      }
-
-      synth.speak(utter)
-    },
-    [id]
-  )
+        }
+      },
+      [id]
+    )
 
   // =========================================================
   // ASK AI
