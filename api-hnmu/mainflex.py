@@ -97,7 +97,7 @@ class SystemConfig(Base):
     __tablename__ = "system_config"
     id = Column(Integer, primary_key=True, index=True)
     provider = Column(String, default="nebius")
-    openai_api_key = "v1.CmQKHHN0YXRpY2tleS1lMDBqaGNxbXo4czl5dnZjOWcSIXNlcnZpY2VhY2NvdW50LWUwMHBqano1cjVwd3IyeDVhNDIMCMrotdUGEOqql7QBOgwIyevNoAcQgLnvogJAAloDZTAw.AAAAAAAAAAFIGNfQ9C1lPDNn0jZSuZyir6VTEBALh5MtKDvhKBmFJpCN_pAfaUJzCopmJ7pfZKMNTyXx1on2Rw3dyXAKqDYA"
+    openai_api_key = "tleS1lMDBqaGNxbXo4czl5dnZjOWcSIXNlcnZpY2VhY2NvdW50LWUwMHBqano1cjVwd3IyeDVhNDIMCMrotdUGEOqql7QBOgwIyevNoAcQgLnvogJAAloDZTAw.AAAAAAAAAAFIGNfQ9C1lPDNn0jZSuZyir6VTEBALh5MtKDvhKBmFJpCN_pAfaUJzCopmJ7pfZKMNTyXx1on2Rw3dyXAKqDYA"
     model_name = Column(String, default="nvidia/Nemotron-3_5-Lightning")
 
 Base.metadata.create_all(bind=engine)
@@ -347,7 +347,7 @@ async def save_document(project_id: int, request: Request):
 # LLM WORK
 # --- Nebius / OpenAI-compatible configuration ---
 
-NEBIUS_API_KEY = "v1.CmQKHHN0YXRpY2tleS1lMDBqaGNxbXo4czl5dnZjOWcSIXNlcnZpY2VhY2NvdW50LWUwMHBqano1cjVwd3IyeDVhNDIMCMrotdUGEOqql7QBOgwIyevNoAcQgLnvogJAAloDZTAw.AAAAAAAAAAFIGNfQ9C1lPDNn0jZSuZyir6VTEBALh5MtKDvhKBmFJpCN_pAfaUJzCopmJ7pfZKMNTyXx1on2Rw3dyXAKqDYA"
+NEBIUS_API_KEY = "UwMHBqano1cjVwd3IyeDVhNDIMCMrotdUGEOqql7QBOgwIyevNoAcQgLnvogJAAloDZTAw.AAAAAAAAAAFIGNfQ9C1lPDNn0jZSuZyir6VTEBALh5MtKDvhKBmFJpCN_pAfaUJzCopmJ7pfZKMNTyXx1on2Rw3dyXAKqDYA"
 NEBIUS_BASE_URL = "https://api.tokenfactory.us-north1.nebius.com/v1/"
 NEBIUS_MODEL = "zai-org/GLM-5.3"
 
